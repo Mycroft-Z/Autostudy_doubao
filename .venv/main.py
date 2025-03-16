@@ -1,6 +1,3 @@
-from pynput import keyboard
-import sys
-import main
 import base64
 from volcenginesdkarkruntime import Ark
 import pandas as pd
@@ -9,96 +6,133 @@ import time
 import pygetwindow as gw
 import os
 import excel_write
-from config import api_key, endpoint_id, base_path, QandA_path, client
-import mumu_info
+from config import api_key,endpoint_id,base_path,QandA_path
 
-def safe_get_window_position():
+
+# 创建 Ark 客户端，传入 api_key
+client = Ark(api_key=api_key)
+
+# 图片编码
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
+# 答案页面识别，输出[题目,正确选项1内容,正确选项2内容…]
+def process_image_and_request_ans(image_path, client, endpoint_id):
     try:
-        return mumu_info.get_mumu_window_position()
-    except Exception as e:
-        print(f"窗口定位失败: {str(e)}")
-        return (0, 0, 0, 0, None)
+        # 编码图片
+        image_base64 = encode_image(image_path)
 
-def on_press(key):
+        # 发送请求
+        print("----- standard request -----")
+        completion = client.chat.completions.create(
+            model=endpoint_id,
+            messages=[
+                {"role": "system", "content": "你是AI图像识别助手，按照我的要求输出答案"},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "从图片中提取出页面类型、题目类型、题目、正确选项内容,输出为python列表格式。例：[查看答卷，判断题，题目,正确选项1内容,正确选项2内容]"},
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
+
+                    ]
+                }
+            ]
+        )
+        # 打印响应结果
+        return(completion.choices[0].message.content)
+    except Exception as e:
+        print(f"请求过程中出现错误: {e}")
+# 答题页面识别，输出[题目,{A选项内容:(A选项横坐标，A选项纵坐标)},{B选项内容:(B选项横坐标，B选项纵坐标)}]
+def process_image_and_request_que(image_path, client, endpoint_id):
     try:
-        if key in (keyboard.Key.f10, keyboard.Key.f11):
-            before_que = None  # 初始化为None
-            while True:  # 无限循环直到满足终止条件
-                time.sleep(1)
-                px, py, width, height, image_path = safe_get_window_position()
+        # 编码图片
+        image_base64 = encode_image(image_path)
 
-                if image_path is None:
-                    print("窗口定位失败，跳过本次处理")
-                    continue  # 跳过本次循环，继续下次尝试
-
-                if key == keyboard.Key.f10:
-                    func = main.execute_process_que
-                    args = (image_path, client, endpoint_id, QandA_path)
-                else:
-                    func = main.execute_process_ans
-                    args = (image_path, client, endpoint_id, QandA_path)
-
-                try:
-                    result = func(*args)
-                except Exception as e:
-                    print(f"处理失败: {str(e)}，跳过本次处理")
-                    continue
-
-                # 强制检查返回值类型
-                if not result:
-                    print(result)
-                    print(type(result))
-                    print("未获取到有效题目内容，跳过本次处理")
-                    continue
-
-                if key == keyboard.Key.f10:
-                    question_type, process_question, process_answers, matched_answers = result
-                    current_question = process_question
-                else:
-                    # 明确指定F11分支返回的题目内容
-                    current_question = result  # 假设execute_process_ans返回题目字符串
-
-                # 调试输出增强：显示image_path和返回值
-                print(f"当前image_path: {image_path}")
-                print(f"函数返回值: {result}")
-                print(f"当前题目: {current_question}, 前一次题目: {before_que}")
-
-                # 终止条件：连续两次题目相同且非None
-                if before_que is not None and current_question == before_que:
-                    print("连续两次识别到相同题目，结束操作")
-                    break
-                else:
-                    before_que = current_question  # 更新前一次题目
-
-                # 执行操作（答题或拖拽）
-                if key == keyboard.Key.f10:
-                    main.execute_process_que_click(
-                        question_type, process_answers, matched_answers, px, py, width, height
-                    )
-                else:
-                    if width > 0 and height > 0:
-                        drag_x = px + width * 4/5
-                        drag_y = py + height * 4/5
-                        pyautogui.moveTo(drag_x, drag_y)
-                        pyautogui.dragTo(px + width/5, drag_y, duration=0.5)
-                        pyautogui.moveTo(px, py)
-            return True  # 统一抑制事件
-
-        elif key == keyboard.Key.f12:
-            print("脚本已关闭")
-            return False  # 停止监听器
-
+        # 发送请求
+        print("----- standard request -----")
+        completion = client.chat.completions.create(
+            model=endpoint_id,
+            messages=[
+                {"role": "system", "content": "你是AI图像识别助手，按照我的要求输出答案"},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "从图片中提取出页面类型、题目类型、题目、选项、选项所在的像素坐标。原点为图片左上角，输出为python列表格式，其中选项内容与坐标互为键值对，坐标为元组格式且只包含两个数字。例：[考试作答、判断题、题目,{A选项内容:(A选项横坐标，A选项纵坐标),B选项内容:(B选项横坐标，B选项纵坐标)}]"},
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}}
+                    ]
+                }
+            ]
+        )
+        # 打印响应结果
+        return(completion.choices[0].message.content)
     except Exception as e:
-        print(f"发生未知错误: {str(e)}")
-        return True  # 异常时继续监听
+        print(f"请求过程中出现错误: {e}")
 
-def start_listener():
-    with keyboard.Listener(on_press=on_press, suppress=True) as listener:
-        try:
-            listener.join()
-        except KeyboardInterrupt:
-            listener.stop()
+# 在excel中匹配答案，输出[题目,正确选项1内容,正确选项2内容…]
+def match_question_in_excel(question, excel_path, sheet_name='Sheet1', question_column='题目'):
+    try:
+        # 读取Excel文件，使用相对路径
+        df = pd.read_excel(excel_path, sheet_name=sheet_name)
 
-if __name__ == "__main__":
-    print("后台监听已启动，按F12退出")
-    start_listener()
+        # 匹配题目
+        matched_row = df[df[question_column] == question]
+
+        if not matched_row.empty:
+            # 过滤空值
+            non_empty_values = matched_row.iloc[0].dropna().tolist()
+            return non_empty_values
+        else:
+            return []
+    except Exception as e:
+        print(f"匹配过程中出现错误: {e}")
+        return []
+
+
+#答题执行部分
+def execute_process_que(image_path, client, endpoint_id,QandA_path,):
+    question_type,process_question,process_answers = eval(process_image_and_request_que(image_path, client, endpoint_id))[1:4]
+    print(process_question,process_answers)
+    print(type(process_question),type(process_answers))
+    matched_answers = match_question_in_excel(process_question, QandA_path)[1:]
+    print(matched_answers)
+    return question_type, process_question, process_answers, matched_answers
+
+#如果匹配到题目则执行元素点击操作
+def execute_process_que_click(question_type, process_answers, matched_answers, pox, poy, width, height):
+    if matched_answers != []:
+        print("匹配到题目")
+        print(matched_answers)
+        print(type(matched_answers))
+        #依次以列表matched_answers中的元素作为key 点击process_answers中的value
+        for key in matched_answers:
+            click_position_x , click_position_y = process_answers[str(key)]
+            pyautogui.click(click_position_x + pox, click_position_y + poy + 30)
+    else:
+        first_key = next(iter(process_answers))
+        click_position_x, click_position_y = process_answers[first_key]
+        pyautogui.click(click_position_x + pox, click_position_y + poy + 30)
+        print('不在题库中')
+
+    # 如果是多选题，则进行滑动操作进入下一题
+    if question_type == '多选题':
+        # 执行拖拽操作（示例使用 pyautogui 的 dragTo）
+        pyautogui.moveTo(pox + width * 4 / 5, poy + height * 4 / 5)
+        pyautogui.dragTo(pox + width / 5, poy + height * 4 / 5, duration=0.5)
+    # 将鼠标移动到原点，防止干扰下一题识别
+    pyautogui.moveTo(pox, poy)
+
+#答案记录部分
+def execute_process_ans(image_path, client, endpoint_id,QandA_path):
+    process_question = eval(process_image_and_request_ans(image_path, client, endpoint_id))
+    #将识别的题目和答案内容写入excel，先判断是否有匹配的题目，如果有则不写入，如果没有则写入
+    matched_question = match_question_in_excel(process_question[2], QandA_path)
+    print(process_question)
+    if matched_question != []:
+         print("题库重复，无需写入")
+         pass
+    else:
+         # 如果未匹配到题目则写入
+         excel_write.append_list_to_excel(QandA_path, process_question[2:])
+         print("已写入题库")
+    return process_question[2]
+
