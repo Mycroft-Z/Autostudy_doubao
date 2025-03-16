@@ -52,7 +52,7 @@ def on_press(key):
                         pyautogui.moveTo(pox, poy)
 
 
-            return True  # 统一抑制F10/F11事件传递
+                return True  # 统一抑制F10/F11事件传递
 
         elif key == keyboard.Key.f12:
             print("脚本已关闭")
