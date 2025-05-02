@@ -23,7 +23,7 @@ def process_image_and_request_ans(image_path, client, endpoint_id):
         image_base64 = encode_image(image_path)
 
         # 发送请求
-        print("----- standard request -----")
+        print("----- 正在上传题目 -----")
         completion = client.chat.completions.create(
             model=endpoint_id,
             messages=[
@@ -49,7 +49,7 @@ def process_image_and_request_que(image_path, client, endpoint_id):
         image_base64 = encode_image(image_path)
 
         # 发送请求
-        print("----- standard request -----")
+        print("----- 正在上传题目 -----")
         completion = client.chat.completions.create(
             model=endpoint_id,
             messages=[
@@ -92,7 +92,7 @@ def match_question_in_excel(question, excel_path, sheet_name='Sheet1', question_
 def execute_process_que(image_path, client, endpoint_id,QandA_path,):
     question_type,process_question,process_answers = eval(process_image_and_request_que(image_path, client, endpoint_id))[1:4]
     print(process_question,process_answers)
-    print(type(process_question),type(process_answers))
+    # print(type(process_question),type(process_answers))
     matched_answers = match_question_in_excel(process_question, QandA_path)[1:]
     print(matched_answers)
     return question_type, process_question, process_answers, matched_answers
@@ -102,24 +102,28 @@ def execute_process_que_click(question_type, process_answers, matched_answers, p
     if matched_answers != []:
         print("匹配到题目")
         print(matched_answers)
-        print(type(matched_answers))
+        # print(type(matched_answers))
         #依次以列表matched_answers中的元素作为key 点击process_answers中的value
-        for key in matched_answers:
-            click_position_x , click_position_y = process_answers[str(key)]
-            pyautogui.click(click_position_x + pox, click_position_y + poy + 30)
+        # for key in matched_answers:
+        #     click_position_x , click_position_y = process_answers[str(key)]
+        #     pyautogui.click(click_position_x + pox, click_position_y + poy + 50)
+        #     time.sleep(0.2)
+        pass #屏蔽点击
     else:
-        first_key = next(iter(process_answers))
-        click_position_x, click_position_y = process_answers[first_key]
-        pyautogui.click(click_position_x + pox, click_position_y + poy + 30)
+        pass  # 屏蔽点击
+        # first_key = next(iter(process_answers))
+        # click_position_x, click_position_y = process_answers[first_key]
+        # pyautogui.click(click_position_x + pox, click_position_y + poy + 50)
         print('不在题库中')
 
     # 如果是多选题，则进行滑动操作进入下一题
-    if question_type == '多选题':
+    # if question_type == '多选题':   #点击屏蔽默认滑动下一题
         # 执行拖拽操作（示例使用 pyautogui 的 dragTo）
-        pyautogui.moveTo(pox + width * 4 / 5, poy + height * 4 / 5)
-        pyautogui.dragTo(pox + width / 5, poy + height * 4 / 5, duration=0.5)
+    pyautogui.moveTo(pox + width * 4 / 5, poy + height * 4 / 5)
+    pyautogui.dragTo(pox + width / 5, poy + height * 4 / 5, duration=0.5)
     # 将鼠标移动到原点，防止干扰下一题识别
     pyautogui.moveTo(pox, poy)
+    return(matched_answers)
 
 #答案记录部分
 def execute_process_ans(image_path, client, endpoint_id,QandA_path):

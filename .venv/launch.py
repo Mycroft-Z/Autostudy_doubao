@@ -22,6 +22,8 @@ def safe_get_window_position():
 def on_press(key):
     try:
         if key in (keyboard.Key.f10, keyboard.Key.f11):
+            # 定义一个列表，用于储存题目答案
+            ans_list = []
             before_que = None  # 初始化为None
             while True:  # 无限循环直到满足终止条件
                 time.sleep(1)
@@ -32,6 +34,7 @@ def on_press(key):
                     continue  # 跳过本次循环，继续下次尝试
 
                 if key == keyboard.Key.f10:
+
                     func = main.execute_process_que
                     args = (image_path, client, endpoint_id, QandA_path)
                 else:
@@ -59,22 +62,27 @@ def on_press(key):
                     current_question = result  # 假设execute_process_ans返回题目字符串
 
                 # 调试输出增强：显示image_path和返回值
-                print(f"当前image_path: {image_path}")
-                print(f"函数返回值: {result}")
-                print(f"当前题目: {current_question}, 前一次题目: {before_que}")
+                # print(f"当前image_path: {image_path}")
+                # print(f"函数返回值: {result}")
+                # print(f"当前题目: {current_question}, 前一次题目: {before_que}")
 
                 # 终止条件：连续两次题目相同且非None
                 if before_que is not None and current_question == before_que:
-                    print("连续两次识别到相同题目，结束操作")
+                    print("连续两次识别到相同题目，结束操作,答案如下")
+                    for i in ans_list:
+                        print(i)
                     break
                 else:
                     before_que = current_question  # 更新前一次题目
 
                 # 执行操作（答题或拖拽）
                 if key == keyboard.Key.f10:
-                    main.execute_process_que_click(
+
+
+                    ans = main.execute_process_que_click(
                         question_type, process_answers, matched_answers, px, py, width, height
                     )
+                    ans_list.append(ans)
                 else:
                     if width > 0 and height > 0:
                         drag_x = px + width * 4/5
@@ -102,3 +110,5 @@ def start_listener():
 if __name__ == "__main__":
     print("后台监听已启动，按F12退出")
     start_listener()
+
+#存在问题：坐标偏离点歪
