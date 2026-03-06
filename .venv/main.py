@@ -90,12 +90,37 @@ def match_question_in_excel(question, excel_path, sheet_name='Sheet1', question_
 
 #答题执行部分
 def execute_process_que(image_path, client, endpoint_id,QandA_path,):
-    question_type,process_question,process_answers = eval(process_image_and_request_que(image_path, client, endpoint_id))[1:4]
-    print(process_question,process_answers)
-    # print(type(process_question),type(process_answers))
-    matched_answers = match_question_in_excel(process_question, QandA_path)[1:]
-    print(matched_answers)
-    return question_type, process_question, process_answers, matched_answers
+    try:
+        response = process_image_and_request_que(image_path, client, endpoint_id)
+        # 修复全角符号为半角符号
+        response = response.replace('，', ',').replace('。', '.').replace('：', ':').replace('；', ';').replace('！', '!').replace('？', '?')
+        response = response.replace('（', '(').replace('）', ')')
+        # 处理全角引号
+        response = response.replace('“', '"').replace('”', '"').replace('‘', '\'').replace('’', '\'')
+        # 尝试解析
+        result = eval(response)
+        question_type,process_question,process_answers = result[1:4]
+        print(process_question,process_answers)
+        # print(type(process_question),type(process_answers))
+        matched_answers = match_question_in_excel(process_question, QandA_path)[1:]
+        print(matched_answers)
+        return question_type, process_question, process_answers, matched_answers
+    except Exception as e:
+        print(f"解析失败: {e}")
+        # 再次尝试，可能是其他格式问题
+        try:
+            # 尝试清理额外的空白和换行
+            response = response.strip().replace('\n', '').replace('\r', '')
+            result = eval(response)
+            question_type,process_question,process_answers = result[1:4]
+            print(process_question,process_answers)
+            matched_answers = match_question_in_excel(process_question, QandA_path)[1:]
+            print(matched_answers)
+            return question_type, process_question, process_answers, matched_answers
+        except Exception as e2:
+            print(f"再次解析失败: {e2}")
+            # 不抛出异常，返回默认值
+            return '["查看答卷", "判断题", "解析失败", ""]'
 
 #如果匹配到题目则执行元素点击操作
 def execute_process_que_click(question_type, process_answers, matched_answers, pox, poy, width, height):
@@ -116,27 +141,57 @@ def execute_process_que_click(question_type, process_answers, matched_answers, p
         # pyautogui.click(click_position_x + pox, click_position_y + poy + 50)
         print('不在题库中')
 
-    # 如果是多选题，则进行滑动操作进入下一题
-    # if question_type == '多选题':   #点击屏蔽默认滑动下一题
-        # 执行拖拽操作（示例使用 pyautogui 的 dragTo）
-    pyautogui.moveTo(pox + width * 4 / 5, poy + height * 4 / 5)
-    pyautogui.dragTo(pox + width / 5, poy + height * 4 / 5, duration=0.5)
-    # 将鼠标移动到原点，防止干扰下一题识别
-    pyautogui.moveTo(pox, poy)
+    # 执行滑动操作进入下一题
+    print("执行滑动操作...")
+    if width > 0 and height > 0:
+        pyautogui.moveTo(pox + width * 4 / 5, poy + height * 4 / 5)
+        pyautogui.dragTo(pox + width / 5, poy + height * 4 / 5, duration=0.5)
+        # 将鼠标移动到原点，防止干扰下一题识别
+        pyautogui.moveTo(pox, poy)
+    print("滑动完成")
     return(matched_answers)
 
 #答案记录部分
 def execute_process_ans(image_path, client, endpoint_id,QandA_path):
-    process_question = eval(process_image_and_request_ans(image_path, client, endpoint_id))
-    #将识别的题目和答案内容写入excel，先判断是否有匹配的题目，如果有则不写入，如果没有则写入
-    matched_question = match_question_in_excel(process_question[2], QandA_path)
-    print(process_question)
-    if matched_question != []:
-         print("题库重复，无需写入")
-         pass
-    else:
-         # 如果未匹配到题目则写入
-         excel_write.append_list_to_excel(QandA_path, process_question[2:])
-         print("已写入题库")
-    return process_question[2]
+    try:
+        response = process_image_and_request_ans(image_path, client, endpoint_id)
+        # 修复全角符号为半角符号
+        response = response.replace('，', ',').replace('。', '.').replace('：', ':').replace('；', ';').replace('！', '!').replace('？', '?')
+        response = response.replace('（', '(').replace('）', ')')
+        # 处理全角引号
+        response = response.replace('“', '"').replace('”', '"').replace('‘', '\'').replace('’', '\'')
+        # 尝试解析
+        process_question = eval(response)
+        #将识别的题目和答案内容写入excel，先判断是否有匹配的题目，如果有则不写入，如果没有则写入
+        matched_question = match_question_in_excel(process_question[2], QandA_path)
+        print(process_question)
+        if matched_question != []:
+             print("题库重复，无需写入")
+             pass
+        else:
+             # 如果未匹配到题目则写入
+             excel_write.append_list_to_excel(QandA_path, process_question[2:])
+             print("已写入题库")
+        return process_question[2]
+    except Exception as e:
+        print(f"解析失败: {e}")
+        # 再次尝试，可能是其他格式问题
+        try:
+            # 尝试清理额外的空白和换行
+            response = response.strip().replace('\n', '').replace('\r', '')
+            process_question = eval(response)
+            matched_question = match_question_in_excel(process_question[2], QandA_path)
+            print(process_question)
+            if matched_question != []:
+                 print("题库重复，无需写入")
+                 pass
+            else:
+                 # 如果未匹配到题目则写入
+                 excel_write.append_list_to_excel(QandA_path, process_question[2:])
+                 print("已写入题库")
+            return process_question[2]
+        except Exception as e2:
+            print(f"再次解析失败: {e2}")
+            # 不抛出异常，返回默认值
+            return '["查看答卷", "判断题", "解析失败", ""]'
 

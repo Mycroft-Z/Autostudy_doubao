@@ -26,8 +26,9 @@ def get_mumu_window_position():
         # 捕获窗口截图
         screenshot = pyautogui.screenshot(region=(left, top, width, height))
 
-        # 保存截图到lib目录
-        screenshot_path = os.path.join('lib', 'mumu_screenshot.png')
+        # 保存截图到Lib目录
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        screenshot_path = os.path.join(current_dir, 'Lib', 'mumu_screenshot.png')
         screenshot.save(screenshot_path)
 
         return left, top, width, height, screenshot_path
